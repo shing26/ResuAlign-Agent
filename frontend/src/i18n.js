@@ -1,0 +1,156 @@
+import { ref } from 'vue'
+
+const locale = ref(localStorage.getItem('resualign_locale') || 'zh')
+
+const messages = {
+  en: {
+    app_title: 'ResuAlign-Agent',
+    app_subtitle: 'Anti-hallucination resume optimizer',
+    connected: 'Connected',
+    disconnected: 'Disconnected',
+    settings: 'Model Settings',
+    simple_mode: 'Simple (one model for all)',
+    advanced_mode: 'Advanced (per-stage routing)',
+    provider: 'Provider',
+    api_key: 'API Key',
+    model: 'Model',
+    base_url: 'Base URL',
+    enter_api_key: 'Enter API key',
+    test_connection: 'Test Connection',
+    testing: 'Testing...',
+    backend_connected: 'Backend connected. Send a request to verify.',
+    backend_down: 'Backend not reachable',
+    api_key_required: 'API Key required',
+    use_default: 'Use default',
+    optional_override: 'Optional override',
+    stage_jd: 'JD Structuring',
+    stage_diag: 'Resume Diagnosis',
+    stage_tailor: 'Resume Tailoring',
+    jd_input: 'Job Description',
+    jd_placeholder: 'Paste job description here...',
+    resume: 'Resume',
+    drop_pdf: 'Drop PDF here or click to upload',
+    analyze: 'Analyze & Tailor',
+    processing: 'Processing...',
+    stage_parse: 'Parse',
+    stage_diagnose: 'Diagnosing',
+    stage_structure: 'JD Structuring',
+    stage_tailoring: 'Tailoring',
+    stage_check: 'Checking',
+    stage_done: 'Done',
+    msg_parse: 'Extracting resume text...',
+    msg_diagnose: 'Analyzing resume quality...',
+    msg_structure: 'Analyzing job requirements...',
+    msg_tailoring: 'Optimizing resume to match JD...',
+    msg_check: 'Running assertion checks...',
+    msg_done: 'Analysis complete!',
+    diagnostic_report: 'Diagnostic Report',
+    cached: 'Cached',
+    fresh: 'Fresh',
+    star_label: 'STAR Compliance',
+    quant_label: 'Quant Metrics',
+    detected_skills: 'Detected Skills',
+    no_skills: 'No skills detected',
+    issues: 'Issues',
+    suggestions: 'Suggestions',
+    optimized_resume: 'Optimized Resume',
+    export_md: 'Export Markdown',
+    missing_skills: 'Missing Skills',
+    full_output: 'Full Output',
+    error: 'Error',
+    dismiss: 'Dismiss',
+    light_mode: 'Light mode',
+    dark_mode: 'Dark mode',
+    processing_time: 'Processing time',
+    model_settings: 'Model Settings',
+  },
+  zh: {
+    app_title: 'ResuAlign-Agent',
+    app_subtitle: '反幻觉简历优化引擎',
+    connected: '已连接',
+    disconnected: '未连接',
+    settings: '模型设置',
+    simple_mode: '简单模式（所有阶段用同一模型）',
+    advanced_mode: '高级模式（按阶段路由不同模型）',
+    provider: '模型提供商',
+    api_key: 'API Key',
+    model: '模型名称',
+    base_url: '接口地址',
+    enter_api_key: '输入 API Key',
+    test_connection: '测试连接',
+    testing: '测试中...',
+    backend_connected: '后端连接成功，发送请求验证 Key',
+    backend_down: '后端不可达',
+    api_key_required: '需要填写 API Key',
+    use_default: '使用默认',
+    optional_override: '可选覆盖',
+    stage_jd: 'JD 结构化',
+    stage_diag: '简历诊断',
+    stage_tailor: '简历优化',
+    jd_input: '职位描述',
+    jd_placeholder: '粘贴职位描述...',
+    resume: '上传简历',
+    drop_pdf: '拖拽 PDF 到这里或点击上传',
+    analyze: '分析并优化',
+    processing: '处理中...',
+    stage_parse: '解析',
+    stage_diagnose: '诊断',
+    stage_structure: '提取 JD',
+    stage_tailoring: '优化',
+    stage_check: '校验',
+    stage_done: '完成',
+    msg_parse: '正在提取简历文本...',
+    msg_diagnose: '正在分析简历质量...',
+    msg_structure: '正在解析岗位要求...',
+    msg_tailoring: '正在优化简历匹配度...',
+    msg_check: '正在执行断言校验...',
+    msg_done: '分析完成！',
+    diagnostic_report: '诊断报告',
+    cached: '缓存',
+    fresh: '实时',
+    star_label: 'STAR 合规度',
+    quant_label: '量化指标',
+    detected_skills: '检测到的技能',
+    no_skills: '未检测到技能',
+    issues: '问题',
+    suggestions: '改进建议',
+    optimized_resume: '优化后的简历',
+    export_md: '导出 Markdown',
+    missing_skills: '缺失技能',
+    full_output: '完整输出',
+    error: '错误',
+    dismiss: '关闭',
+    light_mode: '浅色模式',
+    dark_mode: '深色模式',
+    processing_time: '处理耗时',
+    model_settings: '模型设置',
+  }
+}
+
+function t(key) {
+  return messages[locale.value]?.[key] ?? messages.en[key] ?? key
+}
+
+const providerLabels = {
+  en: {
+    deepseek: 'DeepSeek', gemini: 'Gemini', openai: 'OpenAI',
+    anthropic: 'Anthropic', glm: 'GLM (Zhipu)', moonshot: 'Moonshot (Kimi)',
+    openrouter: 'OpenRouter', ollama: 'Ollama (Local)', mock: 'Mock (Demo)',
+  },
+  zh: {
+    deepseek: 'DeepSeek', gemini: 'Gemini', openai: 'OpenAI',
+    anthropic: 'Anthropic', glm: '智谱 GLM', moonshot: '月之暗面 (Kimi)',
+    openrouter: 'OpenRouter', ollama: 'Ollama (本地)', mock: '模拟',
+  }
+}
+
+function tp(provider) {
+  return providerLabels[locale.value]?.[provider] ?? providerLabels.en[provider] ?? provider
+}
+
+function setLocale(loc) {
+  locale.value = loc
+  localStorage.setItem('resualign_locale', loc)
+}
+
+export { locale, t, tp, setLocale }

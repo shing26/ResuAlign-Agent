@@ -1,0 +1,124 @@
+"""Pipeline orchestrator: ties Diagnoser + Tailor + Shield into one async flow."""
+
+from __future__ import annotations
+
+import hashlib
+import logging
+import time
+
+from resume_align.llm import create_llm_client
+from resume_align.parsers.pdf_parser import PDFParser, ResumeParseResult
+from resume_align.parsers.jd_parser import JDStructurer, StructuredJD
+from resume_align.agents.diagnoser import DiagnoserAgent, DiagnosticReport, ResumeInput
+from resume_align.agents.tailor import TailorAgent, TailorOutput, TailorInput
+from resume_align.shield.assertion_checker import AssertionChecker
+from resume_align.shield.redis_cache import RedisCache
+
+logger = logging.getLogger(__name__)
+MAX_TAILOR_RETRIES = 2
+
+
+class PipelineResult:
+    def __init__(self, diagnostic, tailoring=None, cached=False, processing_time_ms=0, missing_skills=None, had_fabrication=False):
+        self.diagnostic = diagnostic
+        self.tailoring = tailoring
+        self.cached = cached
+        self.processing_time_ms = processing_time_ms
+        self.missing_skills = missing_skills or []
+        self.had_fabrication = had_fabrication
+
+
+class ResumePipeline:
+    def __init__(self):
+        llm = create_llm_client()
+        self.pdf_parser = PDFParser()
+        self.jd_structurer = JDStructurer(llm)
+        self.diagnoser = DiagnoserAgent(llm)
+        self.tailor = TailorAgent(llm)
+        self.checker = AssertionChecker()
+        self.cache = RedisCache()
+
+    async def initialize(self):
+        await self.cache.connect()
+
+    async def run(self, resume_content, jd_text=None, filename="resume.pdf", llm_configs=None):
+        start_time = time.monotonic()
+        if isinstance(resume_content, bytes):
+            parse_result = self.pdf_parser.parse_bytes(resume_content, filename)
+        else:
+            md5 = hashlib.md5(resume_content.encode("utf-8")).hexdigest()
+            sections = self.pdf_parser._split_sections(resume_content)
+            parse_result = ResumeParseResult(raw_text=resume_content, sections=sections, md5_fingerprint=md5, page_count=0)
+        logger.info("Parsed: %d chars, %d sections, md5=%s", len(parse_result.raw_text), len(parse_result.sections), parse_result.md5_fingerprint[:8])
+
+        jd_md5 = self.jd_structurer.md5(jd_text) if jd_text else None
+        cached_result = await self.cache.get(parse_result.md5_fingerprint, jd_md5)
+        if cached_result:
+            elapsed = int((time.monotonic() - start_time) * 1000)
+            return PipelineResult(diagnostic=DiagnosticReport(**cached_result["diagnostic"]), cached=True, processing_time_ms=elapsed)
+
+        resume_input = ResumeInput(raw_text=parse_result.raw_text, sections=parse_result.sections)
+        diagnostic_report = await self.diagnoser.run(resume_input)
+        logger.info("Diagnosis: STAR=%.2f, Quant=%.2f", diagnostic_report.star_score, diagnostic_report.quant_score)
+
+        tailored_results = None
+        missing_skills = []
+        had_fabrication = False
+
+        if jd_text:
+            jd_llm = self._make_stage_client("jd_structurer", llm_configs)
+            diag_llm = self._make_stage_client("diagnoser", llm_configs)
+            tailor_llm = self._make_stage_client("tailor", llm_configs)
+
+            if jd_llm:
+                self.jd_structurer = JDStructurer(jd_llm)
+            if diag_llm:
+                self.diagnoser = DiagnoserAgent(diag_llm)
+            if tailor_llm:
+                self.tailor = TailorAgent(tailor_llm)
+
+            structured_jd = await self.jd_structurer.structure(jd_text)
+            jd_ctx = self.jd_structurer.to_context_dict(structured_jd)
+            logger.info("JD structured: %d required skills", len(structured_jd.required_skills))
+            original_skills = set(diagnostic_report.skill_breadth)
+            tailored_results = []
+
+            for section in parse_result.sections:
+                sr = await self._tailor_section_with_retry(section, jd_ctx, original_skills, set(structured_jd.required_skills), diagnostic_report.suggestions)
+                tailored_results.append(sr["output"])
+                missing_skills.extend(sr["missing_skills"])
+                if sr["had_fabrication"]:
+                    had_fabrication = True
+
+            missing_skills = list(set(missing_skills))
+
+        cache_data = {"diagnostic": diagnostic_report.model_dump(), "tailoring": [r.model_dump() for r in tailored_results] if tailored_results else None, "missing_skills": missing_skills}
+        await self.cache.set(parse_result.md5_fingerprint, cache_data, jd_md5)
+        elapsed = int((time.monotonic() - start_time) * 1000)
+        return PipelineResult(diagnostic=diagnostic_report, tailoring=tailored_results, processing_time_ms=elapsed, missing_skills=missing_skills, had_fabrication=had_fabrication)
+
+    async def _tailor_section_with_retry(self, section, jd_ctx, original_skills, jd_skills, diagnostic_suggestions):
+        retry_hints = list(diagnostic_suggestions)
+        for attempt in range(MAX_TAILOR_RETRIES + 1):
+            tailor_input = TailorInput(resume_section=section, section_heading=section.get("heading", ""), jd_requirements=jd_ctx, diagnostic_hints=retry_hints, original_skills=list(original_skills))
+            result = await self.tailor.run(tailor_input)
+            assertion = self.checker.check(tailored_text=result.tailored_content, original_skills=original_skills, jd_skills=jd_skills)
+            if assertion["passed"]:
+                return {"output": result, "missing_skills": result.missing_skills, "had_fabrication": attempt > 0}
+            fabricated = assertion["fabricated_skills"]
+            logger.warning("Attempt %d/%d for %s: fabricated=%s", attempt + 1, MAX_TAILOR_RETRIES + 1, section.get("heading", "?"), fabricated)
+            if attempt < MAX_TAILOR_RETRIES:
+                retry_hints.append(f"PREVIOUS ATTEMPT fabricated: {fabricated}. CRITICAL: Do NOT add these skills. Use ONLY skills from the original resume.")
+            else:
+                logger.warning("Max retries for %s, keeping original", section.get("heading", "?"))
+                fallback = TailorOutput(tailored_content=section.get("content", ""), changes_log=[{"type": "degradation", "reason": f"Fabrication risk, original kept after {MAX_TAILOR_RETRIES + 1} attempts"}], missing_skills=list(jd_skills - original_skills), refusal_triggered=True)
+                return {"output": fallback, "missing_skills": fallback.missing_skills, "had_fabrication": True}
+        raise RuntimeError("unreachable")
+
+    def _make_stage_client(self, config_key, llm_configs):
+        if llm_configs and config_key in llm_configs:
+            cfg = llm_configs[config_key]
+            if isinstance(cfg, dict):
+                return create_llm_client(**cfg)
+            return None
+        return None
