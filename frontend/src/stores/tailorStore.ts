@@ -1,77 +1,84 @@
 import { defineStore } from 'pinia'
-import type { DiffDelta, DiffItem, JobTarget } from '@/types/diff'
+import type { DiffDelta, JobTarget } from '../types/diff'
 
 export const useTailorStore = defineStore('tailor', {
   state: () => ({
     baseResumeText: '',
     targets: [] as JobTarget[],
-    activeTargetId: '' as string,
+    activeTargetId: '',
     diffDeltaMap: {} as Record<string, DiffDelta>,
     acceptedDiffIdsMap: {} as Record<string, Set<string>>,
     isLoading: false,
-    errorMessage: '',
+    errorMessage: null as string | null,
+    settings: {
+      apiKey: '',
+      baseUrl: 'https://api.openai.com/v1',
+      model: 'gpt-4o'
+    }
   }),
 
   getters: {
-    activeTarget(state): JobTarget | undefined {
-      return state.targets.find(t => t.id === state.activeTargetId)
-    },
-    activeDiffDelta(state): DiffDelta | undefined {
-      return state.diffDeltaMap[state.activeTargetId]
-    },
-    activeAcceptedIds(state): Set<string> {
-      if (!state.acceptedDiffIdsMap[state.activeTargetId]) {
-        state.acceptedDiffIdsMap[state.activeTargetId] = new Set()
-      }
-      return state.acceptedDiffIdsMap[state.activeTargetId]
-    },
+    activeTarget: (state) => state.targets.find(t => t.id === state.activeTargetId),
+    activeDiffDelta: (state) => state.diffDeltaMap[state.activeTargetId],
+    activeAcceptedIds: (state) => state.acceptedDiffIdsMap[state.activeTargetId] || new Set(),
+
     highConfidenceCount(): number {
       const delta = this.activeDiffDelta
       return delta ? delta.diff_items.filter(i => i.confidence === 'HIGH').length : 0
     },
+
     finalResumeText(state): string {
       const delta = state.diffDeltaMap[state.activeTargetId]
       const acceptedIds = state.acceptedDiffIdsMap[state.activeTargetId]
+      if (!state.baseResumeText) return ''
       if (!delta || !acceptedIds || acceptedIds.size === 0) return state.baseResumeText
-      let resultText = state.baseResumeText
-      delta.diff_items.forEach((item: DiffItem) => {
+
+      let result = state.baseResumeText
+      delta.diff_items.forEach((item) => {
         if (!acceptedIds.has(item.id)) return
-        if (item.type === 'MODIFY' && item.original_text && resultText.includes(item.original_text)) {
-          resultText = resultText.replace(item.original_text, item.proposed_text)
-        } else if (item.type === 'ADD' && item.original_text && resultText.includes(item.original_text)) {
-          resultText = resultText.replace(item.original_text, item.original_text + '\n' + item.proposed_text)
+        if (item.type === 'MODIFY' && item.original_text) {
+          result = result.replace(item.original_text, item.proposed_text)
+        } else if (item.type === 'ADD' && item.original_text) {
+          result = result.replace(item.original_text, item.original_text + '\\n- ' + item.proposed_text)
         } else if (item.type === 'DELETE' && item.original_text) {
-          resultText = resultText.replace(item.original_text, '')
+          result = result.replace(item.original_text, '')
         }
       })
-      return resultText
+      return result
     }
   },
 
   actions: {
+    setActiveTarget(id: string) { this.activeTargetId = id },
+
     toggleAccept(diffId: string) {
       if (!this.activeTargetId) return
-      const acceptedSet = this.activeAcceptedIds
-      acceptedSet.has(diffId) ? acceptedSet.delete(diffId) : acceptedSet.add(diffId)
+      if (!this.acceptedDiffIdsMap[this.activeTargetId]) {
+        this.acceptedDiffIdsMap[this.activeTargetId] = new Set()
+      }
+      const set = this.acceptedDiffIdsMap[this.activeTargetId]
+      set.has(diffId) ? set.delete(diffId) : set.add(diffId)
     },
+
     acceptAllHighConfidence() {
       const delta = this.activeDiffDelta
       if (!delta || !this.activeTargetId) return
-      const acceptedSet = this.activeAcceptedIds
+      if (!this.acceptedDiffIdsMap[this.activeTargetId]) {
+        this.acceptedDiffIdsMap[this.activeTargetId] = new Set()
+      }
+      const set = this.acceptedDiffIdsMap[this.activeTargetId]
       delta.diff_items.forEach(item => {
-        if (item.confidence === 'HIGH') acceptedSet.add(item.id)
+        if (item.confidence === 'HIGH') set.add(item.id)
       })
     },
-    setActiveTarget(id: string) {
-      this.activeTargetId = id
-    },
+
     async createTargetAndAnalyze(companyName: string, jobTitle: string, jobText: string) {
-      if (!this.baseResumeText) { this.errorMessage = 'Please upload your resume first'; return }
+      if (!this.baseResumeText) { this.errorMessage = 'Upload your resume first'; return }
       const targetId = 'target_' + Date.now()
       this.targets.push({ id: targetId, companyName, jobTitle, jobText, matchScoreBefore: 0, matchScoreAfter: 0, status: 'draft' })
       this.activeTargetId = targetId
       this.isLoading = true
-      this.errorMessage = ''
+      this.errorMessage = null
 
       try {
         const res = await fetch('/api/v1/tailor', {
@@ -88,16 +95,16 @@ export const useTailorStore = defineStore('tailor', {
             match_score_before: dd.match_score_before || 0,
             match_score_after: dd.match_score_after || 0,
             summary: dd.summary || '',
-            diff_items: dd.diff_items.map((d: any, i: number) => ({...d, id: d.id || 'd_' + i})),
+            diff_items: dd.diff_items.map((d: any, i: number) => ({ ...d, id: d.id || 'd_' + i })),
           }
         }
         const t = this.targets.find(x => x.id === targetId)
-        if (t) { t.status = 'analyzed'; t.matchScoreBefore = dd?.match_score_before || 68; t.matchScoreAfter = dd?.match_score_after || 88 }
+        if (t) { t.matchScoreBefore = dd?.match_score_before || 68; t.matchScoreAfter = dd?.match_score_after || 88; t.status = 'analyzed' }
       } catch (err: any) {
         this.errorMessage = err.message || String(err)
       } finally {
         this.isLoading = false
       }
-    },
+    }
   }
 })
