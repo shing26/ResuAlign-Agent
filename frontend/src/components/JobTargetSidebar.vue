@@ -1,57 +1,114 @@
-<script setup lang="ts">
-import type { JobTarget } from "../types/diff"
-defineProps<{ targets: JobTarget[]; activeTargetId: string }>()
-const emit = defineEmits<{ (e: "select-target", id: string): void; (e: "create-target"): void; (e: "upload-resume"): void; (e: "open-settings"): void }>()
+﻿<script setup lang="ts">
+import { useTailorStore } from '@/stores/tailorStore'
+import { computed } from 'vue'
+
+const props = defineProps<{
+  targets: any[]
+  activeTargetId: string
+}>()
+
+const emit = defineEmits<{
+  (e: 'select-target', id: string): void
+  (e: 'create-target'): void
+  (e: 'upload-resume'): void
+  (e: 'open-settings'): void
+}>()
+
+const store = useTailorStore()
+
+// 判断是否已上传主简历
+const hasBaseResume = computed(() => !!store.baseResumeText)
 </script>
 
 <template>
-  <aside class="sidebar">
-    <div class="sidebar-header">
-      <div class="logo-row">
-        <span class="logo-icon">&#9889;</span>
-        <h2>ResuAlign <span class="version-badge">v1.0</span></h2>
+  <aside class="w-64 bg-[#0b0f19] border-r border-[#1e293b] flex flex-col h-full z-20">
+    <!-- 1. Logo 与系统设置 -->
+    <div class="p-5 border-b border-[#1e293b] flex justify-between items-center">
+      <div class="flex items-center gap-2">
+        <span class="text-sky-400 font-black text-xl">⚡</span>
+        <h1 class="text-slate-100 font-bold tracking-wider">ResuAlign <span class="text-xs bg-sky-500/20 text-sky-400 px-1.5 py-0.5 rounded">v2.0</span></h1>
       </div>
-      <button class="btn-new-target" @click="emit('create-target')">+ &#26032;&#24314;&#23703;&#20301;&#25237;&#36882;</button>
+      <button @click="emit('open-settings')" class="text-slate-400 hover:text-sky-400 transition-colors" title="系统设置">
+        ⚙️
+      </button>
     </div>
-    <div class="targets-list">
-      <div class="targets-count">&#25237;&#36882;&#30446;&#26631;&#30475;&#26495; ({{ targets.length }})</div>
-      <div v-for="t in targets" :key="t.id" class="target-card" :class="{ active: t.id === activeTargetId }" @click="emit('select-target', t.id)">
-        <div class="target-company">{{ t.companyName }}</div>
-        <div class="target-title">{{ t.jobTitle }}</div>
-        <div class="target-footer">
-          <div class="score-pill"><span class="score-old">{{ t.matchScoreBefore }}</span> <span class="score-arrow">&#10140;</span> <span class="score-new">{{ t.matchScoreAfter }}&#20998;</span></div>
-          <span class="status-dot" :class="t.status"></span>
-        </div>
+
+    <!-- 2. 全局前置：PDF 主简历上传区 (Cyber 风格) -->
+    <div class="p-4 border-b border-[#1e293b] bg-[#0f172a]/50">
+      <div class="text-xs font-semibold text-slate-500 mb-3 tracking-wide uppercase">
+        Base Resume (Truth Source)
       </div>
+      
+      <!-- 未上传状态 -->
+      <button 
+        v-if="!hasBaseResume"
+        @click="emit('upload-resume')"
+        class="w-full flex flex-col items-center justify-center gap-2 border-2 border-dashed border-sky-500/30 bg-sky-500/5 hover:bg-sky-500/10 hover:border-sky-400 transition-all rounded-xl p-4 cursor-pointer group"
+      >
+        <div class="p-2 bg-sky-500/20 rounded-full text-sky-400 group-hover:scale-110 transition-transform">
+          📄
+        </div>
+        <div class="text-center">
+          <p class="text-sm font-semibold text-sky-400">上传 PDF 主简历</p>
+          <p class="text-xs text-slate-500 mt-1">支持解析并作为真理源</p>
+        </div>
+      </button>
+
+      <!-- 已上传状态 -->
+      <div v-else class="flex items-center justify-between bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3">
+        <div class="flex items-center gap-2 overflow-hidden">
+          <span class="text-emerald-400 text-lg">✓</span>
+          <div class="truncate">
+            <p class="text-xs font-semibold text-emerald-400">主简历已就绪</p>
+            <p class="text-[10px] text-slate-400 truncate">可进行靶向多路对齐</p>
+          </div>
+        </div>
+        <button @click="emit('upload-resume')" class="text-xs text-slate-400 hover:text-sky-400 underline">
+          重新上传
+        </button>
+      </div>
+    </div>
+
+    <!-- 3. 多路岗位对齐看板 -->
+    <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+      <div class="flex items-center justify-between mb-1">
+        <span class="text-xs font-semibold text-slate-500 tracking-wide uppercase">Target Boards ({{ targets.length }})</span>
+      </div>
+
+      <!-- 岗位目标列表 -->
+      <button
+        v-for="target in targets"
+        :key="target.id"
+        @click="emit('select-target', target.id)"
+        class="text-left w-full p-3 rounded-lg border transition-all relative overflow-hidden"
+        :class="[
+          activeTargetId === target.id 
+            ? 'bg-[#1e293b] border-sky-500 shadow-[0_0_15px_rgba(14,165,233,0.15)]' 
+            : 'bg-[#0f172a] border-[#334155] hover:border-slate-400'
+        ]"
+      >
+        <div class="font-bold text-sm text-slate-200 truncate">{{ target.companyName }}</div>
+        <div class="text-xs text-slate-400 mt-1 truncate">{{ target.jobTitle }}</div>
+        
+        <!-- 侧边霓虹指示灯 -->
+        <div 
+          v-if="activeTargetId === target.id" 
+          class="absolute left-0 top-0 bottom-0 w-1 bg-sky-400 shadow-[0_0_8px_rgba(14,165,233,0.8)]"
+        ></div>
+      </button>
+    </div>
+
+    <!-- 4. 新建投递按钮 -->
+    <div class="p-4 border-t border-[#1e293b]">
+      <button 
+        @click="emit('create-target')"
+        :disabled="!hasBaseResume"
+        class="w-full py-2.5 rounded-lg text-sm font-bold transition-all shadow-lg flex items-center justify-center gap-2"
+        :class="hasBaseResume ? 'bg-sky-500 hover:bg-sky-400 text-white' : 'bg-slate-700 text-slate-500 cursor-not-allowed'"
+        :title="!hasBaseResume ? '请先上传主简历' : ''"
+      >
+        <span>+</span> 新建岗位投递
+      </button>
     </div>
   </aside>
 </template>
-
-<style scoped>
-.sidebar { width: 270px; background: #0b0f19; border-right: 1px solid #1e293b; height: 100vh; display: flex; flex-direction: column; padding: 16px; }
-.sidebar-header { margin-bottom: 24px; }
-.logo-row { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
-.logo-icon { font-size: 20px; }
-.logo-row h2 { color: #f1f5f9; font-weight: 700; font-size: 16px; margin: 0; }
-.version-badge { font-size: 11px; background: rgba(56,189,248,0.1); color: #38bdf8; padding: 1px 6px; border-radius: 4px; border: 1px solid rgba(56,189,248,0.2); }
-.btn-new-target { width: 100%; padding: 8px 12px; background: linear-gradient(to right, #2563eb, #1d4ed8); color: white; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s; }
-.btn-sidebar { width: 100%; padding: 6px 12px; background: #0f172a; color: #94a3b8; border: 1px solid #334155; border-radius: 6px; cursor: pointer; font-size: 12px; margin-top: 6px; transition: all 0.2s; }
-.btn-sidebar:hover { background: #1e293b; color: #f1f5f9; }
-.btn-new-target:hover { background: linear-gradient(to right, #3b82f6, #2563eb); }
-.targets-list { flex: 1; overflow-y: auto; }
-.targets-count { color: #64748b; font-size: 11px; font-weight: 600; text-transform: uppercase; margin-bottom: 12px; }
-.target-card { padding: 12px; border-radius: 8px; border: 1px solid rgba(51,65,85,0.5); cursor: pointer; margin-bottom: 8px; transition: all 0.2s; background: rgba(30,41,59,0.2); }
-.target-card:hover { background: #1e293b; border-color: #475569; }
-.target-card.active { background: #1e293b; border-color: #38bdf8; box-shadow: 0 0 12px rgba(56,189,248,0.15); }
-.target-company { font-weight: 600; color: #f1f5f9; font-size: 14px; }
-.target-title { color: #94a3b8; font-size: 12px; margin-top: 2px; }
-.target-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
-.score-pill { background: #0f172a; padding: 1px 8px; border-radius: 50px; font-size: 11px; color: #94a3b8; display: flex; align-items: center; gap: 4px; }
-.score-old { text-decoration: line-through; color: #f43f5e; }
-.score-arrow { color: #64748b; }
-.score-new { color: #34d399; font-weight: 700; }
-.status-dot { width: 8px; height: 8px; border-radius: 50%; }
-.status-dot.draft { background: #64748b; }
-.status-dot.analyzed { background: #10b981; box-shadow: 0 0 6px #10b981; }
-.status-dot.applied { background: #38bdf8; }
-</style>
