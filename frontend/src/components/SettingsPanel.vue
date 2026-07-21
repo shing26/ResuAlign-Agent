@@ -132,7 +132,7 @@ const defaultModel = computed(() => defaultModels[config.value.provider] || '')
 const defaultBaseUrl = computed(() => defaultUrls[config.value.provider] || '')
 
 watch([config, stageConfigs, mode], async () => {
-  if (config.value.api_key && !sessionId.value) {
+  if (config.value.api_key) {
     await configureSession()
   }
   emit('config-change', getActiveConfig())
@@ -141,6 +141,8 @@ watch([config, stageConfigs, mode], async () => {
 async function configureSession() {
   if (!config.value.api_key) return false
   try {
+    sessionId.value = ''
+    maskedKey.value = ''
     const res = await fetch('/api/v1/session/configure', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

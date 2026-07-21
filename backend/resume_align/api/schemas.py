@@ -82,6 +82,10 @@ class SessionConfigResponse(BaseModel):
     masked_key: str
 
 
+class SessionTestRequest(BaseModel):
+    session_id: str
+
+
 class ErrorResponse(BaseModel):
     """Standard error response."""
 

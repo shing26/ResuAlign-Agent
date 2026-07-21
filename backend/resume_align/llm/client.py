@@ -94,6 +94,22 @@ class OpenAIClient(LLMClient):
         model = kwargs.get("model", self.model)
         temp = kwargs.get("temperature", 0.1)
         messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}]
+
+        # Strategy 0: Ollama native API with format=json (forces valid JSON output)
+        if "11434" in str(getattr(self.client, "_base_url", self.client.base_url)):
+            try:
+                import httpx
+                raw = await httpx.AsyncClient(timeout=120).post(
+                    str(getattr(self.client, "_base_url", self.client.base_url)).replace("/v1", "/api/chat"),
+                    json={"model": model, "messages": messages, "format": "json", "stream": False,
+                          "options": {"temperature": float(temp)}},
+                )
+                data = raw.json()
+                text = data["message"]["content"]
+                text = text[text.find("{"):text.rfind("}")+1] if "{" in text else text
+                return response_model(**json.loads(text))
+            except Exception as e:
+                logger.debug("Strategy 0 (Ollama native JSON) failed: %s", e)
         try:
             response = await self.client.beta.chat.completions.parse(
                 model=model, messages=messages, response_format=response_model, temperature=temp,
@@ -227,6 +243,10 @@ class MockClient(LLMClient):
         for chunk in ["[Mock] ", "streaming ", "response."]:
             await asyncio.sleep(50 / 1000)
             yield chunk
+
+
+def get_llm_client(provider=None, api_key=None, model=None, base_url=None) -> LLMClient:
+    return create_llm_client(provider, api_key, model, base_url)
 
 
 def create_llm_client(provider=None, api_key=None, model=None, base_url=None) -> LLMClient:

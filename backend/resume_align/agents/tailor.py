@@ -10,6 +10,9 @@ from pydantic import BaseModel, Field
 
 from resume_align.agents.base import BaseAgent
 from resume_align.llm import LLMClient
+from resume_align.models.diff import DiffDelta, DiffItem, DiffType, ConfidenceLevel
+from resume_align.models.resume import ResumeContext
+from resume_align.models.job import JobContext
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +60,21 @@ Your job is to align a resume section to a target job description (JD) while fol
 - Factual fidelity > Terminology alignment > Creative phrasing
 - When in doubt, keep the original text unchanged.
 
-Return valid JSON matching the TailorOutput schema.
+Return a structured diff_delta JSON with individual sentence-level changes.
+
+## Output Format
+Each diff in diff_delta has:
+- type: "modify" | "add" | "delete"
+- original_text: original text being changed
+- proposed_text: new replacement text
+- reason: why this change aligns with the JD
+- confidence: "high" (safe synonym/terminology) | "medium" (structural rewrite)
+
+Rules:
+- Each diff must be ONE atomic change (one sentence or phrase)
+- Do NOT combine multiple unrelated changes into one diff
+- Do NOT fabricate skills or experience not in the original text
+- "high" confidence is ONLY for safe terminology alignment with JD keywords
 """
 
 
@@ -88,3 +105,8 @@ class TailorAgent(BaseAgent[TailorInput, TailorOutput]):
             parts.append(f"\n=== Original Resume Skills ===")
             parts.append(", ".join(input_data.original_skills))
         return "\n".join(parts)
+
+    async def run_with_context(self, base_resume: ResumeContext, job_target: JobContext) -> DiffDelta:
+        prompt = self.system_prompt()
+        user = f"JD:\n{job_target.raw_text}\n\nBase Resume:\n{base_resume.raw_text}"
+        return await self.llm.generate_structured(system_prompt=prompt, user_prompt=user, response_model=DiffDelta)

@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 import json
+import asyncio
 import logging
 import uuid
 
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from sse_starlette.sse import EventSourceResponse
 
-from resume_align.api.schemas import (SessionConfigRequest, SessionConfigResponse,
+from resume_align.api.schemas import (SessionConfigRequest, SessionConfigResponse, SessionTestRequest,
     JobAnalysisRequest, JobAnalysisResponse, DiagnosticResultResponse,
     TailoringResultResponse, ErrorResponse,
 )
@@ -63,6 +64,20 @@ async def _run_and_build(pipeline, resume_content, jd_text=None, filename='resum
     return JobAnalysisResponse(diagnostic=diagnostic_resp, tailoring=tailoring_resp, cached=result.cached, processing_time_ms=result.processing_time_ms)
 
 
+@router.post('/session/test')
+async def test_connection(request: SessionTestRequest):
+    session = get_session(request.session_id)
+    if not session:
+        return {"ok": False, "msg": "Session expired"}
+    try:
+        from resume_align.llm.client import create_llm_client
+        llm = create_llm_client(provider=session["provider"], api_key=session["api_key"], model=session["model"], base_url=session.get("base_url", ""))
+        await llm.generate_text(system_prompt="Reply with: OK", user_prompt="Test")
+        return {"ok": True, "msg": "Connection successful"}
+    except Exception as e:
+        return {"ok": False, "msg": str(e)}
+
+
 @router.post('/session/configure', response_model=SessionConfigResponse, summary='Store API key securely in server session')
 async def configure_session(request: SessionConfigRequest):
     session_id = create_session(provider=request.provider, api_key=request.api_key, model=request.model, base_url=request.base_url)
@@ -79,6 +94,57 @@ async def analyze_resume(request: JobAnalysisRequest):
     except Exception as exc:
         logger.exception('Analysis failed')
         raise HTTPException(status_code=500, detail=str(exc))
+
+
+_stream_queues: dict[str, asyncio.Queue] = {}
+
+
+async def _run_and_stream(report_id: str, pipeline, resume_content, jd_text, filename, llm_configs):
+    queue = _stream_queues[report_id]
+    try:
+        async def emit(event):
+            sse_data = json.dumps(event, ensure_ascii=False)
+            await queue.put(f"data: {sse_data}\n\n")
+        await pipeline.run(resume_content=resume_content, jd_text=jd_text, filename=filename, llm_configs=llm_configs, event_callback=emit)
+    except Exception as e:
+        err = {"event": "error", "data": {"message": str(e)}}
+        await queue.put(f"data: {json.dumps(err, ensure_ascii=False)}\n\n")
+    finally:
+        await queue.put(None)  # Signal end
+
+
+@router.post('/analyze/stream', summary='Streaming resume analysis with SSE')
+async def analyze_resume_stream(
+    file: UploadFile = File(...),
+    jd_text: str | None = Form(None),
+    session_id: str | None = Form(None),
+):
+    content = await file.read()
+    pipeline = await get_pipeline()
+    report_id = str(uuid.uuid4())
+
+    llm_configs = {}
+    if session_id:
+        session = get_session(session_id)
+        if session:
+            llm_configs['default'] = {'provider': session['provider'], 'api_key': session['api_key'], 'model': session.get('model', ''), 'base_url': session.get('base_url', '')}
+
+    queue = asyncio.Queue()
+    _stream_queues[report_id] = queue
+    asyncio.create_task(_run_and_stream(report_id, pipeline, content, jd_text, file.filename or 'resume.pdf', llm_configs if llm_configs else None))
+
+    async def event_generator():
+        while True:
+            msg = await queue.get()
+            if msg is None:
+                break
+            yield msg
+        _stream_queues.pop(report_id, None)
+
+    from sse_starlette.sse import EventSourceResponse
+    return EventSourceResponse(event_generator())
+
+
 
 
 @router.post('/analyze/upload', summary='Upload PDF resume for analysis')
