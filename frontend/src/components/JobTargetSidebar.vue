@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { JobTarget } from "../types/diff"
 defineProps<{ targets: JobTarget[]; activeTargetId: string }>()
-const emit = defineEmits<{ (e: "select-target", id: string): void; (e: "create-target"): void }>()
+const emit = defineEmits<{ (e: "select-target", id: string): void; (e: "create-target"): void; (e: "upload-resume"): void; (e: "open-settings"): void }>()
 </script>
 
 <template>
@@ -35,6 +35,8 @@ const emit = defineEmits<{ (e: "select-target", id: string): void; (e: "create-t
 .logo-row h2 { color: #f1f5f9; font-weight: 700; font-size: 16px; margin: 0; }
 .version-badge { font-size: 11px; background: rgba(56,189,248,0.1); color: #38bdf8; padding: 1px 6px; border-radius: 4px; border: 1px solid rgba(56,189,248,0.2); }
 .btn-new-target { width: 100%; padding: 8px 12px; background: linear-gradient(to right, #2563eb, #1d4ed8); color: white; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s; }
+.btn-sidebar { width: 100%; padding: 6px 12px; background: #0f172a; color: #94a3b8; border: 1px solid #334155; border-radius: 6px; cursor: pointer; font-size: 12px; margin-top: 6px; transition: all 0.2s; }
+.btn-sidebar:hover { background: #1e293b; color: #f1f5f9; }
 .btn-new-target:hover { background: linear-gradient(to right, #3b82f6, #2563eb); }
 .targets-list { flex: 1; overflow-y: auto; }
 .targets-count { color: #64748b; font-size: 11px; font-weight: 600; text-transform: uppercase; margin-bottom: 12px; }

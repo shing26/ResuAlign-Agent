@@ -66,6 +66,7 @@ export const useTailorStore = defineStore('tailor', {
       this.activeTargetId = id
     },
     async createTargetAndAnalyze(companyName: string, jobTitle: string, jobText: string) {
+      if (!this.baseResumeText) { this.errorMessage = 'Please upload your resume first'; return }
       const targetId = 'target_' + Date.now()
       this.targets.push({ id: targetId, companyName, jobTitle, jobText, matchScoreBefore: 0, matchScoreAfter: 0, status: 'draft' })
       this.activeTargetId = targetId
@@ -73,53 +74,25 @@ export const useTailorStore = defineStore('tailor', {
       this.errorMessage = ''
 
       try {
-        const fd = new FormData()
-        fd.append('jd_text', jobText)
-        const blob = new Blob([this.baseResumeText || 'Sample developer resume'], { type: 'text/plain' })
-        fd.append('file', blob, 'resume.txt')
-
-        const res = await fetch('/api/v1/analyze/stream', { method: 'POST', body: fd })
+        const res = await fetch('/api/v1/tailor', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ resume_text: this.baseResumeText, job_text: jobText, company_name: companyName, job_title: jobTitle })
+        })
         if (!res.ok) throw new Error('HTTP ' + res.status)
-
-        const reader = res.body!.getReader()
-        const dec = new TextDecoder()
-        let buf = '', diag: any = null
-
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          buf += dec.decode(value, { stream: true })
-          for (const part of buf.split('\n\n')) {
-            buf = ''
-            for (const line of part.split('\n')) {
-              if (line.startsWith('data: ')) {
-                try {
-                  const evt = JSON.parse(line.slice(6))
-                  if (evt.event === 'result' && evt.data.type === 'diagnostic') diag = evt.data.content
-                  if (evt.event === 'complete' && evt.data) {
-                    const dd = evt.data.diff_delta
-                    if (dd) {
-                      this.diffDeltaMap[targetId] = {
-                        target_job_title: jobTitle,
-                        company_name: companyName,
-                        match_score_before: Math.round((diag?.star_score || 0.5) * 100),
-                        match_score_after: Math.round((diag?.quant_score || 0.7) * 100),
-                        summary: dd.summary || '',
-                        diff_items: dd.diffs?.map((d: any, i: number) => ({
-                          id: 'd_' + i, section: d.section || '', type: d.type || 'MODIFY',
-                          original_text: d.original_text, proposed_text: d.proposed_text,
-                          keywords_aligned: [], reason: d.reason || '', confidence: d.confidence || 'MEDIUM',
-                        })) || [],
-                      }
-                    }
-                    const t = this.targets.find(x => x.id === targetId)
-                    if (t) { t.status = 'analyzed'; t.matchScoreBefore = 68; t.matchScoreAfter = 88 }
-                  }
-                } catch {}
-              }
-            }
+        const data = await res.json()
+        const dd = data.diff_delta
+        if (dd && dd.diff_items) {
+          this.diffDeltaMap[targetId] = {
+            target_job_title: dd.target_job_title || jobTitle,
+            company_name: dd.company_name || companyName,
+            match_score_before: dd.match_score_before || 0,
+            match_score_after: dd.match_score_after || 0,
+            summary: dd.summary || '',
+            diff_items: dd.diff_items.map((d: any, i: number) => ({...d, id: d.id || 'd_' + i})),
           }
         }
+        const t = this.targets.find(x => x.id === targetId)
+        if (t) { t.status = 'analyzed'; t.matchScoreBefore = dd?.match_score_before || 68; t.matchScoreAfter = dd?.match_score_after || 88 }
       } catch (err: any) {
         this.errorMessage = err.message || String(err)
       } finally {

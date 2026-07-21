@@ -82,6 +82,13 @@ class SessionConfigResponse(BaseModel):
     masked_key: str
 
 
+class TailorRequest(BaseModel):
+    resume_text: str
+    job_text: str
+    company_name: str = ""
+    job_title: str = ""
+
+
 class SessionTestRequest(BaseModel):
     session_id: str
 

@@ -146,3 +146,11 @@ class PDFParser:
         except Exception as exc:
             logger.error("OCR error: %s", exc)
             return ""
+
+
+def parse_pdf_resume(file_content: bytes, filename: str = "resume.pdf") -> str:
+    """Standalone convenience function: parse PDF bytes to raw text."""
+    parser = PDFParser()
+    result = parser.parse_bytes(file_content, filename)
+    return result.raw_text
+

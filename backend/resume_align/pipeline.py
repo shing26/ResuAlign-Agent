@@ -17,6 +17,7 @@ from resume_align.shield.redis_cache import RedisCache
 
 logger = logging.getLogger(__name__)
 MAX_TAILOR_RETRIES = 2
+MAX_TAILOR_RETRIES = 2
 
 
 class PipelineResult:
@@ -158,3 +159,4 @@ class ResumePipeline:
             if cfg and isinstance(cfg, dict):
                 return create_llm_client(**cfg)
         return None
+AlignmentPipeline = ResumePipeline

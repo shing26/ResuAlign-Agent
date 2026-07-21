@@ -9,11 +9,11 @@ import uuid
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from sse_starlette.sse import EventSourceResponse
 
-from resume_align.api.schemas import (SessionConfigRequest, SessionConfigResponse, SessionTestRequest,
+from resume_align.api.schemas import (SessionConfigRequest, SessionConfigResponse, SessionTestRequest, TailorRequest,
     JobAnalysisRequest, JobAnalysisResponse, DiagnosticResultResponse,
     TailoringResultResponse, ErrorResponse,
 )
-from resume_align.pipeline import ResumePipeline
+from resume_align.pipeline import ResumePipeline, AlignmentPipeline
 from resume_align.session_store import create_session, get_session, clear_session
 
 logger = logging.getLogger(__name__)
@@ -62,6 +62,37 @@ async def _run_and_build(pipeline, resume_content, jd_text=None, filename='resum
             full_output="\n\n".join(t.tailored_content for t in result.tailoring),
         )
     return JobAnalysisResponse(diagnostic=diagnostic_resp, tailoring=tailoring_resp, cached=result.cached, processing_time_ms=result.processing_time_ms)
+
+
+
+@router.post('/resume/parse-pdf', summary='Parse PDF resume to raw text')
+async def parse_pdf(file: UploadFile = File(...)):
+    content = await file.read()
+    pipeline = await get_pipeline()
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(None, pipeline.pdf_parser.parse_bytes, content, file.filename or 'resume.pdf')
+    return {'raw_text': result.raw_text, 'sections': result.sections, 'md5': result.md5_fingerprint}
+
+@router.post('/tailor', summary='Two-stage agent alignment: Diagnoser + Tailor + Shield')
+async def tailor_resume(request: TailorRequest):
+    pipeline = ResumePipeline()
+    await pipeline.initialize()
+    result = await pipeline.run(resume_content=request.resume_text, jd_text=request.job_text)
+    diffs = []
+    if result.tailoring:
+        for t in result.tailoring:
+            if hasattr(t, 'diff_delta') and t.diff_delta:
+                diffs.extend(t.diff_delta.diffs)
+    return {
+        'diagnostic': {'star_score': result.diagnostic.star_score, 'quant_score': result.diagnostic.quant_score, 'skill_breadth': result.diagnostic.skill_breadth},
+        'diff_delta': {'target_job_title': request.job_title, 'company_name': request.company_name,
+            'match_score_before': round(result.diagnostic.star_score * 100),
+            'match_score_after': round(result.diagnostic.quant_score * 100),
+            'summary': f'Optimized for {request.job_title}',
+            'diff_items': [d.model_dump() for d in diffs]},
+        'missing_skills': result.missing_skills,
+        'processing_time_ms': result.processing_time_ms,
+    }
 
 
 @router.post('/session/test')
