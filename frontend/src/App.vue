@@ -26,8 +26,8 @@ async function handleFileUpload(event: Event) {
     const data = await res.json()
     store.baseResumeText = data.raw_text
     store.errorMessage = null
-  } catch {
-    store.errorMessage = "PDF parse failed"
+  } catch (err: any) {
+    store.errorMessage = "PDF parse failed: " + (err.message || "Unknown error")
   } finally {
     store.isLoading = false
   }
