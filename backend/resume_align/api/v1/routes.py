@@ -14,6 +14,7 @@ from resume_align.api.schemas import (SessionConfigRequest, SessionConfigRespons
     TailoringResultResponse, ErrorResponse,
 )
 from resume_align.core.pipeline import ResumePipeline, AlignmentPipeline
+from resume_align.services.parsers.pdf_parser import PDFParser
 from resume_align.core.session_store import create_session, get_session, clear_session
 
 logger = logging.getLogger(__name__)
