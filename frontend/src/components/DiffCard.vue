@@ -31,7 +31,10 @@ const emit = defineEmits<{ (e: "toggle-accept", id: string): void }>()
 <style scoped>
 .diff-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 16px; margin-bottom: 16px; transition: all 0.2s; }
 .diff-card.accepted { border-color: #10b981; background: rgba(16,185,129,0.05); box-shadow: 0 0 12px rgba(16,185,129,0.1); }
-.diff-card.conf-low { border-color: rgba(245,158,11,0.5); }
+.diff-card { transition: all 0.3s ease; }
+.diff-card:hover { box-shadow: 0 0 20px rgba(0,255,255,0.1); border-color: rgba(0,255,255,0.3); }
+@keyframes pulse-glow { 0%,100% { box-shadow: 0 0 5px rgba(245,158,11,0.3); } 50% { box-shadow: 0 0 20px rgba(245,158,11,0.6); } }
+.diff-card.conf-low { border-color: rgba(245,158,11,0.5); animation: pulse-glow 2s infinite; }
 .diff-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .diff-tags { display: flex; gap: 8px; align-items: center; }
 .tag-type { background: #334155; color: #f1f5f9; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; }

@@ -6,6 +6,7 @@ import TargetHeader from "./components/TargetHeader.vue"
 import DiffCard from "./components/DiffCard.vue"
 import LivePreview from "./components/LivePreview.vue"
 import SettingsPanel from "./components/SettingsPanel.vue"
+import CyberTerminalHero from "./components/CyberTerminalHero.vue"
 import CreateTargetModal from "./components/CreateTargetModal.vue"
 
 const store = useTailorStore()
@@ -102,7 +103,7 @@ function handleExportPDF() {
       </template>
 
       <!-- No target -->
-      <div v-else class="empty-state">Select a target or create one</div>
+      <CyberTerminalHero v-else />
     </main>
 
     <LivePreview :content="store.finalResumeText" />
@@ -134,8 +135,8 @@ function handleExportPDF() {
 .error-state { flex: 1; display: flex; align-items: center; justify-content: center; color: #f87171; padding: 24px; }
 .empty-state { flex: 1; display: flex; align-items: center; justify-content: center; color: #64748b; font-size: 14px; }
 .diff-area { flex: 1; padding: 24px; overflow-y: auto; }
-.settings-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 100; }
-.settings-modal { background: #0f172a; border: 1px solid #334155; border-radius: 12px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; padding: 20px; }
+.settings-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(4px); }
+.settings-modal { background: #0f172a; border: 1px solid rgba(0,255,255,0.2); box-shadow: 0 0 30px rgba(0,255,255,0.1), inset 0 0 60px rgba(0,255,255,0.03); border-radius: 12px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; padding: 20px; }
 .settings-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .settings-modal-header h3 { font-size: 18px; font-weight: 700; margin: 0; color: #f1f5f9; }
 .settings-modal-header button { background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 18px; }
