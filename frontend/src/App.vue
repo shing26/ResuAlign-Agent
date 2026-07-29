@@ -124,7 +124,11 @@ function handleExportPDF() {
 </template>
 
 <style>
-.app-root { display: flex; height: 100vh; width: 100vw; overflow: hidden; background: #0b0f19; color: #f1f5f9; }
+.app-root { display: grid; grid-template-columns: 260px 1fr 350px; height: 100vh; width: 100%; overflow: hidden; background: #0A0D14; color: #e2e8f0; }
+.app-root > input { display: none; }
+.sidebar { grid-column: 1; }
+.workspace { grid-column: 2; }
+.preview-pane { grid-column: 3; }
 .workspace { flex: 1; display: flex; flex-direction: column; background: #0f172a; overflow: hidden; }
 .top-bar { background: rgba(11,15,25,0.5); border-bottom: 1px solid #1e293b; padding: 8px 16px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
 .settings-btn { background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 12px; }
