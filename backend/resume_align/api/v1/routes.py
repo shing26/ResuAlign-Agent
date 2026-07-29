@@ -68,11 +68,15 @@ async def _run_and_build(pipeline, resume_content, jd_text=None, filename='resum
 
 @router.post('/resume/parse-pdf', summary='Parse PDF resume to raw text')
 async def parse_pdf(file: UploadFile = File(...)):
-    content = await file.read()
-    pipeline = await get_pipeline()
-    loop = asyncio.get_event_loop()
-    result = await loop.run_in_executor(None, pipeline.pdf_parser.parse_bytes, content, file.filename or 'resume.pdf')
-    return {'raw_text': result.raw_text, 'sections': result.sections, 'md5': result.md5_fingerprint}
+    try:
+        content = await file.read()
+        from resume_align.services.parsers.pdf_parser import PDFParser
+        pdf_parser = PDFParser()
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(None, pdf_parser.parse_bytes, content, file.filename or "resume.pdf")
+        return {"raw_text": result.raw_text, "sections": result.sections, "md5": result.md5_fingerprint}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post('/tailor', summary='Two-stage agent alignment: Diagnoser + Tailor + Shield')
 async def tailor_resume(request: TailorRequest):
