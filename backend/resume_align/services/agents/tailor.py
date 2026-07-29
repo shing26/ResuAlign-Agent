@@ -8,11 +8,11 @@ from typing import Any
 from typing import Any
 from pydantic import BaseModel, Field
 
-from resume_align.agents.base import BaseAgent
-from resume_align.llm import LLMClient
-from resume_align.models.diff import DiffDelta, DiffItem, DiffType, ConfidenceLevel
-from resume_align.models.resume import ResumeContext
-from resume_align.models.job import JobContext
+from resume_align.services.agents.base import BaseAgent
+from resume_align.infra.llm import LLMClient
+from resume_align.domain.diff import DiffDelta, DiffItem, DiffType, ConfidenceLevel
+from resume_align.domain.resume import ResumeContext
+from resume_align.domain.job import JobContext
 
 logger = logging.getLogger(__name__)
 

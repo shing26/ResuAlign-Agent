@@ -13,8 +13,8 @@ from resume_align.api.schemas import (SessionConfigRequest, SessionConfigRespons
     JobAnalysisRequest, JobAnalysisResponse, DiagnosticResultResponse,
     TailoringResultResponse, ErrorResponse,
 )
-from resume_align.pipeline import ResumePipeline, AlignmentPipeline
-from resume_align.session_store import create_session, get_session, clear_session
+from resume_align.core.pipeline import ResumePipeline, AlignmentPipeline
+from resume_align.core.session_store import create_session, get_session, clear_session
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -101,7 +101,7 @@ async def test_connection(request: SessionTestRequest):
     if not session:
         return {"ok": False, "msg": "Session expired"}
     try:
-        from resume_align.llm.client import create_llm_client
+        from resume_align.infra.llm.client import create_llm_client
         llm = create_llm_client(provider=session["provider"], api_key=session["api_key"], model=session["model"], base_url=session.get("base_url", ""))
         await llm.generate_text(system_prompt="Reply with: OK", user_prompt="Test")
         return {"ok": True, "msg": "Connection successful"}

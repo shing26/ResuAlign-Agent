@@ -9,8 +9,8 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from resume_align.config import settings
-from resume_align.api.routes import router
+from resume_align.core.config import settings
+from resume_align.api.v1.routes import router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

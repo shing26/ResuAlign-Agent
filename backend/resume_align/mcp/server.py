@@ -8,10 +8,10 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from resume_align.config import settings
-from resume_align.llm import create_llm_client
-from resume_align.agents.diagnoser import DiagnoserAgent, ResumeInput
-from resume_align.agents.tailor import TailorAgent, TailorInput
+from resume_align.core.config import settings
+from resume_align.infra.llm import create_llm_client
+from resume_align.services.agents.diagnoser import DiagnoserAgent, ResumeInput
+from resume_align.services.agents.tailor import TailorAgent, TailorInput
 from resume_align.shield.assertion_checker import AssertionChecker
 
 logger = logging.getLogger(__name__)

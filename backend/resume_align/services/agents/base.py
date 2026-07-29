@@ -8,7 +8,7 @@ from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel
 
-from resume_align.llm import LLMClient
+from resume_align.infra.llm import LLMClient
 
 logger = logging.getLogger(__name__)
 

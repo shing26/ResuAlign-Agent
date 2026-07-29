@@ -7,7 +7,7 @@ import time
 
 import redis.asyncio as aioredis
 
-from resume_align.config import settings
+from resume_align.core.config import settings
 
 logger = logging.getLogger(__name__)
 

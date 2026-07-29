@@ -7,8 +7,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from resume_align.agents.base import BaseAgent
-from resume_align.llm import LLMClient
+from resume_align.services.agents.base import BaseAgent
+from resume_align.infra.llm import LLMClient
 
 logger = logging.getLogger(__name__)
 

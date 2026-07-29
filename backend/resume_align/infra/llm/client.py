@@ -12,7 +12,7 @@ import google.genai as genai
 from anthropic import AsyncAnthropic
 from openai import AsyncOpenAI
 
-from resume_align.config import LLMProvider, PROVIDER_CONFIGS, settings
+from resume_align.core.config import LLMProvider, PROVIDER_CONFIGS, settings
 
 logger = logging.getLogger(__name__)
 

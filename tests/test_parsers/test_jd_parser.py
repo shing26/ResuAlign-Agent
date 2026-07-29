@@ -9,7 +9,7 @@ class TestJDStructurer:
 
     def test_md5_consistency(self):
         """Test that same text produces same MD5."""
-        from resume_align.parsers.jd_parser import JDStructurer
+        from resume_align.services.parsers.jd_parser import JDStructurer
 
         structurer = JDStructurer.__new__(JDStructurer)
         md5_1 = structurer.md5("same text")
@@ -18,7 +18,7 @@ class TestJDStructurer:
 
     def test_md5_different(self):
         """Test that different texts produce different MD5."""
-        from resume_align.parsers.jd_parser import JDStructurer
+        from resume_align.services.parsers.jd_parser import JDStructurer
 
         structurer = JDStructurer.__new__(JDStructurer)
         md5_1 = structurer.md5("text a")

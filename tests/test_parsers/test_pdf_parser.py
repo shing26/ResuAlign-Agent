@@ -7,7 +7,7 @@ class TestPDFParser:
 
     def test_section_split(self, sample_resume_text: str):
         """Test that resume text is split into correct sections."""
-        from resume_align.parsers.pdf_parser import PDFParser
+        from resume_align.services.parsers.pdf_parser import PDFParser
 
         parser = PDFParser()
         sections = parser._split_sections(sample_resume_text)
@@ -19,7 +19,7 @@ class TestPDFParser:
 
     def test_empty_text_returns_header_only(self):
         """Test that empty text returns a single section."""
-        from resume_align.parsers.pdf_parser import PDFParser
+        from resume_align.services.parsers.pdf_parser import PDFParser
 
         parser = PDFParser()
         sections = parser._split_sections("")

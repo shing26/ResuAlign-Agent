@@ -9,7 +9,7 @@ from typing import Any
 
 import fitz  # PyMuPDF
 
-from resume_align.config import settings
+from resume_align.core.config import settings
 
 logger = logging.getLogger(__name__)
 

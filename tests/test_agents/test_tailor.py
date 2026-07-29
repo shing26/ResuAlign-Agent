@@ -7,7 +7,7 @@ class TestTailorAgent:
 
     def test_system_prompt_contains_refusal(self):
         """Test system prompt contains refusal mechanism instructions."""
-        from resume_align.agents.tailor import TAILOR_SYSTEM_PROMPT
+        from resume_align.services.agents.tailor import TAILOR_SYSTEM_PROMPT
 
         assert "ZERO FABRICATION" in TAILOR_SYSTEM_PROMPT
         assert "Refusal" in TAILOR_SYSTEM_PROMPT
@@ -15,7 +15,7 @@ class TestTailorAgent:
 
     def test_tailor_output_fields(self):
         """Test that TailorOutput has all required fields."""
-        from resume_align.agents.tailor import TailorOutput
+        from resume_align.services.agents.tailor import TailorOutput
 
         output = TailorOutput(tailored_content="test")
         assert output.tailored_content == "test"

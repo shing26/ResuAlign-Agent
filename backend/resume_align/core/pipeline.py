@@ -6,14 +6,14 @@ import hashlib
 import logging
 import time
 
-from resume_align.llm import create_llm_client
-from resume_align.parsers.pdf_parser import PDFParser, ResumeParseResult
-from resume_align.parsers.jd_parser import JDStructurer, StructuredJD
-from resume_align.agents.diagnoser import DiagnoserAgent, DiagnosticReport, ResumeInput
-from resume_align.agents.tailor import TailorAgent, TailorOutput, TailorInput
+from resume_align.infra.llm import create_llm_client
+from resume_align.services.parsers.pdf_parser import PDFParser, ResumeParseResult
+from resume_align.services.parsers.jd_parser import JDStructurer, StructuredJD
+from resume_align.services.agents.diagnoser import DiagnoserAgent, DiagnosticReport, ResumeInput
+from resume_align.services.agents.tailor import TailorAgent, TailorOutput, TailorInput
 from resume_align.shield.assertion_checker import AssertionChecker
-from resume_align.models.diff import ConfidenceLevel
-from resume_align.shield.redis_cache import RedisCache
+from resume_align.domain.diff import ConfidenceLevel
+from resume_align.infra.redis_cache import RedisCache
 
 logger = logging.getLogger(__name__)
 MAX_TAILOR_RETRIES = 2
