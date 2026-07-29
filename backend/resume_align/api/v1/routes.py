@@ -77,7 +77,8 @@ async def parse_pdf(file: UploadFile = File(...)):
 async def tailor_resume(request: TailorRequest):
     pipeline = ResumePipeline()
     await pipeline.initialize()
-    result = await pipeline.run(resume_content=request.resume_text, jd_text=request.job_text)
+    llm_configs = {"default": {"provider": request.provider, "api_key": request.api_key, "model": request.model, "base_url": request.base_url}} if request.api_key else None
+    result = await pipeline.run(resume_content=request.resume_text, jd_text=request.job_text, llm_configs=llm_configs)
     diffs = []
     if result.tailoring:
         for t in result.tailoring:
@@ -116,116 +117,3 @@ async def configure_session(request: SessionConfigRequest):
     return SessionConfigResponse(session_id=session_id, provider=request.provider, model=request.model or '', masked_key=masked)
 
 
-@router.post('/analyze', response_model=JobAnalysisResponse, responses={400: {'model': ErrorResponse}}, summary='Two-stage resume analysis')
-async def analyze_resume(request: JobAnalysisRequest):
-    try:
-        pipeline = await get_pipeline()
-        llm_configs = _build_llm_configs(request)
-        return await _run_and_build(pipeline, resume_content=request.resume_text, jd_text=request.jd_text, llm_configs=llm_configs)
-    except Exception as exc:
-        logger.exception('Analysis failed')
-        raise HTTPException(status_code=500, detail=str(exc))
-
-
-_stream_queues: dict[str, asyncio.Queue] = {}
-
-
-async def _run_and_stream(report_id: str, pipeline, resume_content, jd_text, filename, llm_configs):
-    queue = _stream_queues[report_id]
-    try:
-        async def emit(event):
-            sse_data = json.dumps(event, ensure_ascii=False)
-            await queue.put(f"data: {sse_data}\n\n")
-        await pipeline.run(resume_content=resume_content, jd_text=jd_text, filename=filename, llm_configs=llm_configs, event_callback=emit)
-    except Exception as e:
-        err = {"event": "error", "data": {"message": str(e)}}
-        await queue.put(f"data: {json.dumps(err, ensure_ascii=False)}\n\n")
-    finally:
-        await queue.put(None)  # Signal end
-
-
-@router.post('/analyze/stream', summary='Streaming resume analysis with SSE')
-async def analyze_resume_stream(
-    file: UploadFile = File(...),
-    jd_text: str | None = Form(None),
-    session_id: str | None = Form(None),
-):
-    content = await file.read()
-    pipeline = await get_pipeline()
-    report_id = str(uuid.uuid4())
-
-    llm_configs = {}
-    if session_id:
-        session = get_session(session_id)
-        if session:
-            llm_configs['default'] = {'provider': session['provider'], 'api_key': session['api_key'], 'model': session.get('model', ''), 'base_url': session.get('base_url', '')}
-
-    queue = asyncio.Queue()
-    _stream_queues[report_id] = queue
-    asyncio.create_task(_run_and_stream(report_id, pipeline, content, jd_text, file.filename or 'resume.pdf', llm_configs if llm_configs else None))
-
-    async def event_generator():
-        while True:
-            msg = await queue.get()
-            if msg is None:
-                break
-            yield msg
-        _stream_queues.pop(report_id, None)
-
-    from sse_starlette.sse import EventSourceResponse
-    return EventSourceResponse(event_generator())
-
-
-
-
-@router.post('/analyze/upload', summary='Upload PDF resume for analysis')
-async def analyze_resume_upload(
-    file: UploadFile = File(...),
-    jd_text: str | None = Form(None),
-    session_id: str | None = Form(None),
-    provider: str | None = Form(None),
-    api_key: str | None = Form(None),
-    model: str | None = Form(None),
-    base_url: str | None = Form(None),
-    jd_structurer_provider: str | None = Form(None),
-    jd_structurer_api_key: str | None = Form(None),
-    jd_structurer_model: str | None = Form(None),
-    diagnoser_provider: str | None = Form(None),
-    diagnoser_api_key: str | None = Form(None),
-    diagnoser_model: str | None = Form(None),
-    tailor_provider: str | None = Form(None),
-    tailor_api_key: str | None = Form(None),
-    tailor_model: str | None = Form(None),
-):
-    try:
-        content = await file.read()
-        pipeline = await get_pipeline()
-        llm_configs = {}
-        if session_id:
-            session = get_session(session_id)
-            if session:
-                llm_configs['default'] = {'provider': session['provider'], 'api_key': session['api_key'], 'model': session.get('model', ''), 'base_url': session.get('base_url', '')}
-        if provider:
-            llm_configs['default'] = {'provider': provider, 'api_key': api_key, 'model': model, 'base_url': base_url}
-        for s_key, s_p, s_k, s_m in [
-            ('jd_structurer', jd_structurer_provider, jd_structurer_api_key, jd_structurer_model),
-            ('diagnoser', diagnoser_provider, diagnoser_api_key, diagnoser_model),
-            ('tailor', tailor_provider, tailor_api_key, tailor_model),
-        ]:
-            if s_p:
-                llm_configs[s_key] = {'provider': s_p, 'api_key': s_k, 'model': s_m}
-        llm_configs = llm_configs if llm_configs else None
-        return await _run_and_build(pipeline, resume_content=content, jd_text=jd_text, filename=file.filename or 'resume.pdf', llm_configs=llm_configs)
-    except Exception as exc:
-        logger.exception('Upload analysis failed')
-        raise HTTPException(status_code=500, detail=str(exc))
-
-
-@router.get('/analyze/{report_id}/stream', summary='SSE stream for pipeline progress')
-async def stream_analysis(report_id: str):
-    async def event_generator():
-        stages = [('diagnosing', 'Running diagnosis...'), ('tailoring', 'Tailoring to JD...'), ('checking', 'Assertion checks...'), ('complete', 'Done!')]
-        for event_type, message in stages:
-            yield {'event': event_type, 'data': json.dumps({'message': message})}
-            import asyncio; await asyncio.sleep(0.5)
-    return EventSourceResponse(event_generator())

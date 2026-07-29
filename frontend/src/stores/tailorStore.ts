@@ -83,7 +83,7 @@ export const useTailorStore = defineStore('tailor', {
       try {
         const res = await fetch('/api/v1/tailor', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resume_text: this.baseResumeText, job_text: jobText, company_name: companyName, job_title: jobTitle })
+          body: JSON.stringify({ resume_text: this.baseResumeText, job_text: jobText, company_name: companyName, job_title: jobTitle, api_key: this.settings.apiKey, model: this.settings.model, base_url: this.settings.baseUrl, provider: this.settings.provider })
         })
         if (!res.ok) throw new Error('HTTP ' + res.status)
         const data = await res.json()
