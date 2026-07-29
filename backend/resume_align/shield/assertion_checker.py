@@ -1,4 +1,4 @@
-﻿"""Assertion Checker: anti-hallucination guard that validates no fabricated skills appear."""
+"""Assertion Checker: anti-hallucination guard that validates no fabricated skills appear."""
 
 from __future__ import annotations
 
@@ -50,6 +50,24 @@ TECH_KEYWORDS: set[str] = {
 
 
 class AssertionChecker:
+
+    def check_diff(self, diff_item, original_skills, jd_skills):
+        extracted = self.extract_tech_entities(diff_item.proposed_text)
+        orig_upper = {s.upper() for s in original_skills}
+        jd_upper = {s.upper() for s in jd_skills}
+        fabricated = extracted - orig_upper - jd_upper
+        synonyms = set()
+        for e in list(fabricated):
+            if self._is_synonym(e, orig_upper | jd_upper):
+                synonyms.add(e)
+                fabricated.discard(e)
+        if fabricated:
+            diff_item.confidence = "LOW"
+            diff_item.alert = f"Hallucination alert: {fabricated}"
+        elif synonyms:
+            diff_item.confidence = "HIGH"
+        return diff_item
+
     """Checks tailored output for fabricated tech entities."""
 
     def __init__(self, custom_tech_set: set[str] | None = None) -> None:
@@ -64,6 +82,15 @@ class AssertionChecker:
             if pattern.search(text_lower):
                 found.add(keyword)
         return found
+
+
+    def _is_synonym(self, term, known_set):
+        for known in known_set:
+            if term in SYNONYM_MAP.get(known, set()):
+                return True
+            if known in SYNONYM_MAP.get(term, set()):
+                return True
+        return False
 
     def check(
         self,
@@ -142,7 +169,25 @@ def verify_diff_delta(self, diff_delta: DiffDelta, base_resume: ResumeContext) -
             item.reason += f" | Hallucination alert: {chr(44).join(hallucinated)}"
     return diff_delta
 
-def _is_synonym(self, term, known_set):
+
+    def check_diff(self, diff_item, original_skills, jd_skills):
+        extracted = self.extract_tech_entities(diff_item.proposed_text)
+        orig_upper = {s.upper() for s in original_skills}
+        jd_upper = {s.upper() for s in jd_skills}
+        fabricated = extracted - orig_upper - jd_upper
+        synonyms = set()
+        for e in list(fabricated):
+            if self._is_synonym(e, orig_upper | jd_upper):
+                synonyms.add(e)
+                fabricated.discard(e)
+        if fabricated:
+            diff_item.confidence = "LOW"
+            diff_item.alert = f"Hallucination alert: {fabricated}"
+        elif synonyms:
+            diff_item.confidence = "HIGH"
+        return diff_item
+
+    def _is_synonym(self, term, known_set):
         for known in known_set:
             if term in SYNONYM_MAP.get(known, set()):
                 return True

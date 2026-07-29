@@ -109,6 +109,7 @@ class ResumePipeline:
         cache_data = {"diagnostic": diagnostic_report.model_dump(), "tailoring": [r.model_dump() for r in tailored_results] if tailored_results else None, "missing_skills": missing_skills}
         await self.cache.set(parse_result.md5_fingerprint, cache_data, jd_md5)
         elapsed = int((time.monotonic() - start_time) * 1000)
+        tailoring_data = None
         if event_callback:
             tailoring_data = [r.model_dump() for r in tailored_results] if tailored_results else None
         all_diffs = []
@@ -116,7 +117,8 @@ class ResumePipeline:
             for t in tailoring_data:
                 if t.get("diff_delta") and t["diff_delta"].get("diffs"):
                     all_diffs.extend(t["diff_delta"]["diffs"])
-        await event_callback({"event": "complete", "data": {"diagnostic": diagnostic_report.model_dump(), "tailoring": tailoring_data, "diff_delta": {"diffs": all_diffs, "missing_skills": missing_skills, "summary": ""}, "missing_skills": missing_skills, "processing_time_ms": elapsed}})
+        if event_callback:
+            await event_callback({"event": "complete", "data": {"diagnostic": diagnostic_report.model_dump(), "tailoring": tailoring_data, "diff_delta": {"diffs": all_diffs, "missing_skills": missing_skills, "summary": ""}, "missing_skills": missing_skills, "processing_time_ms": elapsed}})
         return PipelineResult(diagnostic=diagnostic_report, tailoring=tailored_results, processing_time_ms=elapsed, missing_skills=missing_skills, had_fabrication=had_fabrication)
 
     async def _tailor_section_with_retry(self, section, jd_ctx, original_skills, jd_skills, diagnostic_suggestions):
@@ -130,13 +132,13 @@ class ResumePipeline:
             if assertion["passed"]:
                 # Update diff item confidence based on assertion
                 if result.diff_delta:
-                    for diff_item in result.diff_delta.diffs:
+                    for diff_item in result.diff_delta.diff_items:
                         diff_item = self.checker.check_diff(diff_item, original_skills, jd_skills)
                     # Auto-fix: if ALL diffs are LOW (fabrication risk), retry anyway
-                    all_low = all(d.confidence == ConfidenceLevel.LOW for d in result.diff_delta.diffs)
-                    if all_low and result.diff_delta.diffs:
+                    all_low = all(d.confidence == ConfidenceLevel.LOW for d in result.diff_delta.diff_items)
+                    if all_low and result.diff_delta.diff_items:
                         logger.warning("All diffs LOW confidence, triggering retry")
-                        fabricated = [d.alert for d in result.diff_delta.diffs if d.alert]
+                        fabricated = [d.alert for d in result.diff_delta.diff_items if d.alert]
                         assertion["passed"] = False
                         assertion["fabricated_skills"] = fabricated
 

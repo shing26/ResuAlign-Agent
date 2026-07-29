@@ -1,5 +1,4 @@
 ﻿"""Tailor Agent - Stage 2: JD-aligned resume tailoring with anti-hallucination guardrails."""
-
 from __future__ import annotations
 
 import logging
@@ -10,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from resume_align.services.agents.base import BaseAgent
 from resume_align.infra.llm import LLMClient
+from resume_align.domain.diff import DiffDelta
 from resume_align.domain.diff import DiffDelta, DiffItem, DiffType, ConfidenceLevel
 from resume_align.domain.resume import ResumeContext
 from resume_align.domain.job import JobContext
@@ -29,6 +29,7 @@ class TailorInput(BaseModel):
 class TailorOutput(BaseModel):
     """Structured output from the Tailor Agent."""
     tailored_content: str = Field(..., description="Optimized section text")
+    diff_delta: DiffDelta | None = None
     changes_log: list[Any] = Field(
         default_factory=list,
         description="List of changes: {type: 'rewrite'|'rephrase', reason: ..., before: ..., after: ...}",

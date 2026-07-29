@@ -30,6 +30,7 @@ class DiffItem(BaseModel):
     keywords_aligned: list[str] = Field(default_factory=list)
     reason: str = Field(default="", description="Explanation of change")
     confidence: ConfidenceLevel = Field(default=ConfidenceLevel.HIGH)
+    alert: str = ""
 
 
 class DiffDelta(BaseModel):
