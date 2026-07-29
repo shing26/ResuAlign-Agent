@@ -1,5 +1,5 @@
-<script setup lang="ts">
-import { ref } from "vue"
+﻿<script setup lang="ts">
+import { ref, onMounted, watch } from "vue"
 import { useTailorStore } from "./stores/tailorStore"
 import JobTargetSidebar from "./components/JobTargetSidebar.vue"
 import TargetHeader from "./components/TargetHeader.vue"
@@ -140,3 +140,4 @@ function handleExportPDF() {
 .settings-modal-header h3 { font-size: 18px; font-weight: 700; margin: 0; color: #f1f5f9; }
 .settings-modal-header button { background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 18px; }
 </style>
+

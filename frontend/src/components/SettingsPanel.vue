@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="settings-panel">
     <div class="settings-header" @click="open = !open">
       <span class="settings-icon">&#9881;</span>
@@ -80,6 +80,8 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { t, tp, setLocale } from '../i18n'
+import { useTailorStore } from '../stores/tailorStore'
+const store = useTailorStore()
 
 const emit = defineEmits(['config-change'])
 
@@ -121,9 +123,12 @@ const testResult = ref(null)
 const sessionId = ref(sessionStorage.getItem('resualign_session') || '')
 const maskedKey = ref(sessionStorage.getItem('resualign_masked') || '')
 
-const saved = JSON.parse(localStorage.getItem('resualign_config') || 'null')
-
-const config = ref(saved?.config || { provider: 'deepseek', api_key: '', model: '', base_url: '' })
+const config = ref({
+  provider: store.settings.provider || 'deepseek',
+  api_key: store.settings.apiKey || '',
+  model: store.settings.model || '',
+  base_url: store.settings.baseUrl || '',
+})
 const stageConfigs = ref(saved?.stageConfigs || Object.fromEntries(
   Object.keys(stages).map(k => [k, { provider: '', api_key: '', model: '' }])
 ))
@@ -132,6 +137,10 @@ const defaultModel = computed(() => defaultModels[config.value.provider] || '')
 const defaultBaseUrl = computed(() => defaultUrls[config.value.provider] || '')
 
 watch([config, stageConfigs, mode], async () => {
+  store.settings.provider = config.value.provider
+  store.settings.apiKey = config.value.api_key
+  store.settings.model = config.value.model
+  store.settings.baseUrl = config.value.base_url
   if (config.value.api_key) {
     await configureSession()
   }
@@ -244,3 +253,4 @@ defineExpose({ getActiveConfig })
 .test-status.ok { color: var(--color-success); }
 .test-status.fail { color: var(--color-error); }
 </style>
+
