@@ -129,7 +129,7 @@ const config = ref({
   model: store.settings.model || '',
   base_url: store.settings.baseUrl || '',
 })
-const stageConfigs = ref(saved?.stageConfigs || Object.fromEntries(
+const stageConfigs = ref(Object.fromEntries(
   Object.keys(stages).map(k => [k, { provider: '', api_key: '', model: '' }])
 ))
 

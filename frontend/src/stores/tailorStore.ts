@@ -13,6 +13,7 @@ export const useTailorStore = defineStore('tailor', {
     settings: {
       apiKey: '',
       baseUrl: 'https://api.openai.com/v1',
+      provider: 'deepseek',
       model: 'gpt-4o'
     }
   }),
