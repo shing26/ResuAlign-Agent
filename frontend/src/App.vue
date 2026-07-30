@@ -103,7 +103,14 @@ function handleExportPDF() {
       </template>
 
       <!-- No target -->
-      <CyberTerminalHero v-else />
+      <div v-else class="empty-workspace">
+        <CyberTerminalHero />
+        <div v-if="store.baseResumeText" class="cta-section">
+          <button @click="isCreateModalOpen = true" class="cta-btn">
+            &#9889; Paste JD to start Agent alignment
+          </button>
+        </div>
+      </div>
     </main>
 
     <LivePreview :content="store.finalResumeText" />
