@@ -107,7 +107,7 @@ export const useTailorStore = defineStore('tailor', {
       } finally {
         this.isLoading = false
       }
-    }
+    },
     toggleSidebar() {
       this.sidebarCollapsed = !this.sidebarCollapsed
     }
