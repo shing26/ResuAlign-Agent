@@ -142,7 +142,7 @@ watch([config, stageConfigs, mode], async () => {
   store.settings.model = config.value.model
   store.settings.baseUrl = config.value.base_url
   if (config.value.api_key) {
-    await configureSession()
+    try { await configureSession() } catch {}
   }
   emit('config-change', getActiveConfig())
 }, { deep: true })

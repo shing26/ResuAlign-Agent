@@ -49,7 +49,7 @@ function handleExportPDF() {
 </script>
 
 <template>
-  <div class="app-root">
+  <div class="app-root" :style="{ '--sidebar-width': store.sidebarCollapsed ? '72px' : '260px' }">
     <input type="file" ref="fileInputRef" accept=".pdf,.txt" hidden @change="handleFileUpload" />
 
     <JobTargetSidebar
@@ -124,7 +124,7 @@ function handleExportPDF() {
 </template>
 
 <style>
-.app-root { display: grid; grid-template-columns: 260px 1fr 350px; height: 100vh; width: 100%; overflow: hidden; background: #0A0D14; color: #e2e8f0; }
+.app-root { display: grid; grid-template-columns: var(--sidebar-width,260px) 1fr var(--preview-width,350px); height: 100vh; width: 100%; overflow: hidden; background: var(--bg-primary); color: var(--text-primary); }
 .app-root > input { display: none; }
 .sidebar { grid-column: 1; }
 .workspace { grid-column: 2; }

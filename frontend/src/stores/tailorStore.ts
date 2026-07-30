@@ -10,6 +10,7 @@ export const useTailorStore = defineStore('tailor', {
     acceptedDiffIdsMap: {} as Record<string, Set<string>>,
     isLoading: false,
     errorMessage: null as string | null,
+    sidebarCollapsed: false,
     settings: {
       apiKey: '',
       baseUrl: 'https://api.openai.com/v1',
@@ -106,6 +107,9 @@ export const useTailorStore = defineStore('tailor', {
       } finally {
         this.isLoading = false
       }
+    }
+    toggleSidebar() {
+      this.sidebarCollapsed = !this.sidebarCollapsed
     }
   }
 })
